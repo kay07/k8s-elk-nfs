@@ -1,0 +1,43 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  labels:
+    elastic-app: kibana
+  name: kibana
+  namespace: ns-elasticsearch
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      elastic-app: kibana
+  template:
+    metadata:
+      labels:
+        elastic-app: kibana
+    spec:
+      containers:
+        - name: kibana
+          image: kibana:7.9.0
+          ports:
+            - containerPort: 5601
+              protocol: TCP
+          env:
+            - name: "ELASTICSEARCH_HOSTS"
+              value: "http://elasticsearch-service:9200"
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    elastic-app: kibana
+  name: kibana-service
+  namespace: ns-elasticsearch
+spec:
+  ports:
+    - port: 5601
+      targetPort: 5601
+      nodePort: 30303
+  selector:
+    elastic-app: kibana
+  type: NodePort
