@@ -1,0 +1,145 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: "master-nfs-pv"
+  namespace: ns-elasticsearch
+  labels:
+    release: stable
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    path: /public/logstash
+    server: 192.168.0.170
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: logstash-pvc
+  namespace: ns-elasticsearch
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  selector:
+    matchLabels:
+      release: stable
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: "master-nfs-pv-logs"
+  namespace: ns-elasticsearch
+  labels:
+    release: stable-logs
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    path: /public/logs
+    server: 192.168.0.170
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: logstash-logs-pvc
+  namespace: ns-elasticsearch
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  selector:
+    matchLabels:
+      release: stable-logs
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  labels:
+    log-app: logstash
+  name: logstash
+  namespace: ns-elasticsearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      log-app: logstash
+  template:
+    metadata:
+      labels:
+        log-app: logstash
+    spec:
+      containers:
+        - name: logstash
+          image: logstash:7.9.0
+          command:
+            - "/bin/sh"
+            - "-c"
+            - "/opt/logstash/bin/logstash -f /usr/share/logstash/pipelines/ --config.reload.automatic 30"  
+          volumeMounts:
+            - mountPath: /usr/share/logstash/pipelines/
+              name: logstash-conf-volume  
+           #   subPath: containers.conf
+            - mountPath: /my/logs/
+              name: logstash-logs
+          ports:
+            - containerPort: 5044
+            - containerPort: 5000
+              protocol: TCP
+            - containerPort: 5000
+              protocol: UDP
+            - containerPort: 9600
+          env:
+            - name: "LS_JAVA_OPTS"
+              value: "-Xmx256m -Xms256m"
+            - name: "http.host"
+              value: "0.0.0.0"
+            - name: "xpack.monitoring.elasticsearch.hosts"
+              value: "http://elasticsearch:9200"
+            - name: "xpack.monitoring.enabled"
+              value: "true"
+      volumes:
+        - name: logstash-conf-volume
+        #  configMap:
+        #    name: logstash-config
+          persistentVolumeClaim:
+            claimName: logstash-pvc
+        - name: logstash-logs
+          persistentVolumeClaim:
+            claimName: logstash-logs-pvc
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    log-app: logstash
+  name: logstash-service
+  namespace: ns-elasticsearch
+spec:
+  ports:
+    - port: 5044
+      targetPort: 5044
+      nodePort: 30304
+      name: "5044"
+    - port: 5000
+      targetPort: 5000
+      nodePort: 30305
+      name: "5000"
+    - port: 9600
+      targetPort: 9600
+      nodePort: 30306
+      name: "9600"
+  selector:
+    log-app: logstash
+  type: NodePort

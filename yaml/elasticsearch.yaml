@@ -14,7 +14,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   capacity:
-    storage: 2Gi
+    storage: 20Gi
   persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-elasticsearch
   nfs:
@@ -31,7 +31,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 2Gi
+      storage: 20Gi
   storageClassName: nfs-elasticsearch
 ---
 kind: Deployment
@@ -73,7 +73,10 @@ spec:
               value: single-node
             - name: ES_JAVA_OPTS
               value: -Xms256m -Xmx256m
- 
+          #  - name: http.cors.enabled
+          #    value: true
+          #  - name: http.cors.allow-origin
+          #    value: "*"
       volumes:
         - name: elasticsearch
           persistentVolumeClaim:
@@ -83,8 +86,8 @@ kind: Service
 apiVersion: v1
 metadata:
   labels:
-    elastic-app: elasticsearch-service
-  name: elasticsearch-service
+    elastic-app: elasticsearch
+  name: elasticsearch
   namespace: ns-elasticsearch
 spec:
   ports:

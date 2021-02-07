@@ -24,7 +24,7 @@ spec:
               protocol: TCP
           env:
             - name: "ELASTICSEARCH_HOSTS"
-              value: "http://elasticsearch-service:9200"
+              value: "http://elasticsearch:9200"
 ---
 kind: Service
 apiVersion: v1
